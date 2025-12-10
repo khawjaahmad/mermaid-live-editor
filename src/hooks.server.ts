@@ -1,4 +1,4 @@
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -9,23 +9,17 @@ export const handle: Handle = async ({ event, resolve }) => {
     return await resolve(event, {});
   }
 
-  const auth = event.request.headers.get('Authorization');
-
-  if (auth) {
-    const [scheme, encoded] = auth.split(' ');
-    if (scheme === 'Basic') {
-      const decoded = atob(encoded);
-      const [, password] = decoded.split(':');
-      if (password === SITE_PASSWORD) {
-        return await resolve(event, {});
-      }
-    }
+  // Allow access to login page
+  if (event.url.pathname === '/login') {
+    return await resolve(event, {});
   }
 
-  return new Response('Authentication required', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Protected Site"'
-    }
-  });
+  // Check for auth cookie
+  const authenticated = event.cookies.get('authenticated');
+  if (authenticated === 'true') {
+    return await resolve(event, {});
+  }
+
+  // Redirect to login
+  throw redirect(303, '/login');
 };
